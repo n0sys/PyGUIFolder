@@ -1,2 +1,1 @@
-required:
-    - python 3.2 >
+Manage filesystem in python ?
