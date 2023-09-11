@@ -47,22 +47,21 @@ class App(tk.Frame):
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         
         self.log_objects = {}
-        # Navbar Frame
-        self.navbar_frame = tk.Frame(
-                    master=master,
-                    relief=tk.FLAT,
-                    background="ghostwhite"
-                )
-        self.navbar_frame.pack(fill=tk.X)
         
         # Handle close before saving
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         self.window.bind("<Button-3>", lambda _: self.window.focus_set())
 
-        # Create save button
-        self.btn_save = tk.Button(master=self.navbar_frame, text="Save", command=self.save)
-        self.btn_save.grid(column=0, row=0, sticky="w")
+        # Create navbar
+        menu = Menu(master=master)
+        self.window.config(menu=menu)
+
+        # Add file main item to navbar
+        filemenu = Menu(master=menu, tearoff=0)
+        menu.add_cascade(label="File", menu=filemenu)
+        filemenu.add_command(label="Save", command=self.save)
+        filemenu.add_command(label="Exit", command=self.exit)
 
         # Folders Frame
         self.folders_frame = tk.Frame(
@@ -136,7 +135,7 @@ class App(tk.Frame):
 
         # Add button onclick functionalities
         new_btn_File1.bind("<Button-1>", lambda _= "Open File": self.handle_file_btn_keypress(new_btn_File1.path))
-        new_btn_File1.bind("<Button-3>", self.remove_file)
+        new_btn_File1.bind("<Button-2>", self.remove_file)
 
         print("Added a new file")
 
@@ -260,6 +259,9 @@ class App(tk.Frame):
             logfile.write(json.dumps(self.log_objects))
 
         self.saved = True
+
+    def exit(self):
+        pass
 
     def load_saved_objects(self):
         if os.path.isdir(f"{self.dir_path}/.pyguifolder"):
