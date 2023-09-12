@@ -168,14 +168,15 @@ class App(tk.Frame):
     def create_and_update_file(self, filename):
 
         # Copy file to safe location
-        new_path = self.create_symlink_file(filename)
+        new_path, original_file_use = self.create_symlink_file(filename)
 
         file_id = self.create_file(new_path)
         
         # Save file to the logs
         self.log_objects[self.current_folder.id]["files"].append({
             "file_id":file_id,
-            "path":new_path
+            "path":new_path,
+            "original_file_use":original_file_use
             }
         )
 
@@ -381,12 +382,12 @@ class App(tk.Frame):
         current_folder_files = self.log_objects[folder_id].get('files')
         for file in current_folder_files:
             if file['file_id'] == file_id:
+                # Delete file if its not an original file
+                if not file['original_file_use']:
+                    self.delete_symlink_file(file_path)
                 print("Removing file")
                 current_folder_files.remove(file)
                 continue
-        
-        # Delete saved file
-        self.delete_symlink_file(file_path)
 
         # Update saved var
         self.saved = False
@@ -423,6 +424,9 @@ class App(tk.Frame):
     # Copy saved file to .pyguifolder 
     def create_symlink_file(self, filename):
 
+        # Keep track of whats saved in the logs     
+        original_file_use = False
+        
         # Create directory if it doesn't exist
         dest_dir = f"{self.dir_path}/.pyguifolder/saved_files"
         if not os.path.isdir(dest_dir):
@@ -430,9 +434,11 @@ class App(tk.Frame):
 
         new_path = f"{dest_dir}/{ntpath.basename(filename)}"
         try:
+            # Either we create a symlink if we can
             os.symlink(filename, new_path)
-            return new_path
+            return new_path, original_file_use
         except OSError:
+            # Or we make a copy of the file if the user wants
             if not self.symlink_error_displayed:
                 self.symlink_error_displayed = True
                 if messagebox.askyesno("Not enough priviliges", f"Unable to create symlink to files (run as administrator to fix this).\nDo you want us to copy the files instead ? "):  
@@ -440,9 +446,11 @@ class App(tk.Frame):
                    messagebox.showinfo("Notice", f"Your pyguifolder files are now different than the ones you had.\nChanges to files opened from pyguifolder will not be saved to the original ones.") 
             if self.copy_files_instead:
                 shutil.copyfile(filename, new_path)
-                return new_path
+                return new_path, original_file_use
             
-        return filename
+        # Else we use the original file
+        original_file_use = True
+        return filename, original_file_use
 
     def delete_symlink_file(self, filepath):
         try:
