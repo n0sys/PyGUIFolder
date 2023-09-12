@@ -6,6 +6,7 @@ import json
 import uuid
 from tkinter import messagebox
 from tkinter import Menu
+import shutil
 
 # Tkinter Source Code: https://github.com/python/cpython/blob/3.11/Lib/tkinter/
 # Tkinter colors: https://www.plus2net.com/python/tkinter-colors.php
@@ -52,6 +53,8 @@ class App(tk.Frame):
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         self.window.bind("<Button-3>", lambda _: self.window.focus_set())
+        self.window.bind("<Control-s>", self.save)
+        self.window.bind("<Control-S>", self.save)
 
         # Create navbar
         menu = Menu(master=master)
@@ -95,8 +98,22 @@ class App(tk.Frame):
         # try to load any saved files or folders
         self.load_saved_objects()
 
+        # Setup local directory to save content
+        try:
+            os.mkdir(f"{self.dir_path}/.pyguifolder")
+        except FileExistsError as e:
+            pass
+        except Exception as e:
+            messagebox.showerror("Failed", f"Error while creating directory {e}")
+
         # saved content var
         self.saved = True
+
+        # Show symlink error once
+        self.symlink_error_displayed = False
+        
+        # Copy files instead of symlinks
+        self.copy_files_instead = False
 
     def handle_file_btn_keypress(self, path):
         #Try to open the file
@@ -147,16 +164,20 @@ class App(tk.Frame):
         return new_btn_File1.id
 
 
+    # Creates a new file entry, saves to logs and copies the file to .pyguifolder
     def create_and_update_file(self, filename):
-        file_id = self.create_file(filename)
 
+        # Copy file to safe location
+        new_path = self.create_symlink_file(filename)
+
+        file_id = self.create_file(new_path)
+        
         # Save file to the logs
         self.log_objects[self.current_folder.id]["files"].append({
             "file_id":file_id,
-            "path":filename
+            "path":new_path
             }
-            )
-
+        )
 
     def get_new_folder_name(self):
 
@@ -245,14 +266,7 @@ class App(tk.Frame):
         for file in self.log_objects[new_folder.id].get("files"):
             self.create_file(file.get("path"))
 
-    def save(self):
-        # Try to create .pyguifolder directory
-        try:
-            os.mkdir(f"{self.dir_path}/.pyguifolder")
-        except FileExistsError as e:
-            pass
-        except Exception as e:
-            messagebox.showerror("Failed", f"Error while creating directory {e}")
+    def save(self, event=None):
         
         # Create logs file and add 
         with open(f"{self.dir_path}/.pyguifolder/pyguilogs.txt", "w") as logfile:
@@ -358,7 +372,8 @@ class App(tk.Frame):
 
         file_id = file.id
         folder_id = self.current_folder.id
-        
+        file_path = file.path
+
         # Delete file widget
         file.destroy()
 
@@ -369,6 +384,9 @@ class App(tk.Frame):
                 print("Removing file")
                 current_folder_files.remove(file)
                 continue
+        
+        # Delete saved file
+        self.delete_symlink_file(file_path)
 
         # Update saved var
         self.saved = False
@@ -401,6 +419,36 @@ class App(tk.Frame):
         for file in self.files_frame.winfo_children():
             if isinstance(file, File):
                 file.destroy()
+
+    # Copy saved file to .pyguifolder 
+    def create_symlink_file(self, filename):
+
+        # Create directory if it doesn't exist
+        dest_dir = f"{self.dir_path}/.pyguifolder/saved_files"
+        if not os.path.isdir(dest_dir):
+            os.mkdir(dest_dir)
+
+        new_path = f"{dest_dir}/{ntpath.basename(filename)}"
+        try:
+            os.symlink(filename, new_path)
+            return new_path
+        except OSError:
+            if not self.symlink_error_displayed:
+                self.symlink_error_displayed = True
+                if messagebox.askyesno("Not enough priviliges", f"Unable to create symlink to files (run as administrator to fix this).\nDo you want us to copy the files instead ? "):  
+                   self.copy_files_instead = True 
+                   messagebox.showinfo("Notice", f"Your pyguifolder files are now different than the ones you had.\nChanges to files opened from pyguifolder will not be saved to the original ones.") 
+            if self.copy_files_instead:
+                shutil.copyfile(filename, new_path)
+                return new_path
+            
+        return filename
+
+    def delete_symlink_file(self, filepath):
+        try:
+            os.remove(filepath)
+        except FileNotFoundError:
+            pass
 
 root = tk.Tk(className="PyGuiFolder")
 root.geometry('500x400')
