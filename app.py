@@ -11,10 +11,8 @@ import shutil
 # Tkinter Source Code: https://github.com/python/cpython/blob/3.11/Lib/tkinter/
 # Tkinter colors: https://www.plus2net.com/python/tkinter-colors.php
 # Tkinter tuto: https://realpython.com/python-gui-tkinter/
-# root.geometry('550x250')
 # Tkinter messagebox: https://docs.python.org/3/library/tkinter.messagebox.html
 
-#TODO: bind CTRL+S > save 
 #TODO add navbar https://python-course.eu/tkinter/menus-in-tkinter.php | https://www.tutorialspoint.com/python/tk_menu.htm | https://koor.fr/Python/Tutoriel_Tkinter/tkinter_menu.wp
 
 class File(tk.Button):
@@ -62,7 +60,7 @@ class App(tk.Frame):
 
         # Add file main item to navbar
         filemenu = Menu(master=menu, tearoff=0)
-        menu.add_cascade(label="File", menu=filemenu)
+        menu.add_cascade(label="File", underline=1, menu=filemenu)
         filemenu.add_command(label="Save", command=self.save)
         filemenu.add_command(label="Exit", command=self.exit)
 
@@ -77,7 +75,7 @@ class App(tk.Frame):
         #TODO: label.config(text="newtext")
 
         # Create add new folder button
-        self.new_folder_btn = tk.Button(master=self.folders_frame, text="New Folder", command=self.get_new_folder_name, bg='khaki', fg='gray23')
+        self.new_folder_btn = tk.Button(master=self.folders_frame, text="New Folder", command=self.get_new_folder_name, bg='chocolate1', fg='azure1')
         self.new_folder_btn.grid(column=1, row=0, sticky="ew")
 
         # Files Frame
@@ -237,7 +235,7 @@ class App(tk.Frame):
         self.update_new_folder_button()
         
         if not self.current_folder:
-            self.current_folder = new_folder
+            self.change_current_folder(self.current_folder, new_folder)
 
         # add entry of new folder in logs
         if not self.log_objects.get(new_folder.id):
@@ -259,7 +257,9 @@ class App(tk.Frame):
         if self.current_folder.id == new_folder.id:
             return
         
-        self.current_folder = new_folder
+        #self.current_folder = new_folder
+        self.change_current_folder(self.current_folder, new_folder)
+
         for item in self.files_frame.winfo_children():
             if isinstance(item, File):
                 item.destroy()
@@ -309,16 +309,14 @@ class App(tk.Frame):
         renamed_widget = event.widget
 
         # Get folder's column and row
-        info = renamed_widget.grid_info()
-        column = info.get("column")
-        #row = info.get("row")
+        column = self.get_widget_grid_column(renamed_widget)
 
         # Get folder's id
         id = renamed_widget.id
 
         # Remove folder from grid
         renamed_widget.grid_remove()
-        
+
         # Replace folder with label
         folder_label = tk.Entry(master=self.folders_frame)
         folder_label.grid(column=column, row=0, sticky="ew")
@@ -344,7 +342,7 @@ class App(tk.Frame):
     def update_folder_name(self, foldername, id, folderlabel, folder):
         
         # Get label column
-        column = folderlabel.grid_info().get("column")
+        column = self.get_widget_grid_column(folderlabel)
 
         # If no name supplied re add the folder and keep its name
         if not foldername:
@@ -354,8 +352,13 @@ class App(tk.Frame):
         
         # If new name
         folderlabel.destroy()
-        self.create_new_folder(foldername=foldername, id=id, column=column)
+
+        # If current folder is the one being destroyed, change current folder to None
+        if self.current_folder.id == folder.id:
+            self.current_folder = None
+        
         folder.destroy()
+        self.create_new_folder(foldername=foldername, id=id, column=column)
 
         # Update current logs
         self.log_objects[id]['name'] = foldername
@@ -400,9 +403,6 @@ class App(tk.Frame):
         folder = event.widget
         folder_id = folder.id
 
-        # Delete folder
-        folder.destroy()
-
         # Switch folders
         try:
             self.switch_folders(self.folders_frame.winfo_children()[1])
@@ -410,6 +410,9 @@ class App(tk.Frame):
         except IndexError:
             self.current_folder = None
             self.clear_all_files()
+
+        # Delete folder
+        folder.destroy()
 
         # Update logs
         del self.log_objects[folder_id]
@@ -458,7 +461,27 @@ class App(tk.Frame):
         except FileNotFoundError:
             pass
 
-root = tk.Tk(className="PyGuiFolder")
+    def change_current_folder(self, old_folder, current_folder):
+
+        # Change old folder style if it exists
+        if old_folder is not None:
+            old_folder_column = self.get_widget_grid_column(old_folder)
+            old_folder['fg'] = "black"
+            old_folder.grid(column=old_folder_column, row=0, sticky="ew")
+
+        # change current folder variable
+        self.current_folder = current_folder
+
+        # Change current folder style
+        current_folder_column = self.get_widget_grid_column(self.current_folder)
+        self.current_folder['fg'] = "chocolate1"
+        self.current_folder.grid(column=current_folder_column, row=0, sticky="ew")
+
+    def get_widget_grid_column(self, widget):
+        return widget.grid_info().get("column")
+
+root = tk.Tk()
+root.title("PyGUIFolder")
 root.geometry('500x400')
 myapp = App(root)
 
