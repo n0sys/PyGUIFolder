@@ -5,6 +5,8 @@ Create virtual folders and add files as symlinks to them
 
 ![Image1](images/demo1.png)
 
+Tested on Windows 10 21H1
+
 ## Installation
 First clone the repo
 

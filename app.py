@@ -7,6 +7,7 @@ import uuid
 from tkinter import messagebox
 from tkinter import Menu
 import shutil
+import platform
 
 # Tkinter Source Code: https://github.com/python/cpython/blob/3.11/Lib/tkinter/
 # Tkinter colors: https://www.plus2net.com/python/tkinter-colors.php
@@ -113,9 +114,15 @@ class App(tk.Frame):
         # Copy files instead of symlinks
         self.copy_files_instead = False
 
-    def handle_file_btn_keypress(self, path):
+    def open_file(self, path):
         #Try to open the file
-        os.system(f"\"{path}\"")
+        current_platform = platform.system()
+        
+        # check platform to change the command to use
+        if current_platform == 'Windows':
+            os.system(f"\"{path}\"")
+        else:
+            os.system(f"open {path}")
     
     def get_new_file_path(self):
         
@@ -149,7 +156,7 @@ class App(tk.Frame):
         new_btn_File1.grid(column=file_column, row=file_row, sticky="ew", padx=5, pady=10)
 
         # Add button onclick functionalities
-        new_btn_File1.bind("<Button-1>", lambda _= "Open File": self.handle_file_btn_keypress(new_btn_File1.path))
+        new_btn_File1.bind("<Button-1>", lambda _= "Open File": self.open_file(new_btn_File1.path))
         new_btn_File1.bind("<Button-2>", self.remove_file)
 
         print("Added a new file")
@@ -168,6 +175,10 @@ class App(tk.Frame):
         # Copy file to safe location
         new_path, original_file_use = self.create_symlink_file(filename)
 
+        # None if file already exists
+        if new_path is None:
+            return 
+        
         file_id = self.create_file(new_path)
         
         # Save file to the logs
@@ -424,7 +435,8 @@ class App(tk.Frame):
             if isinstance(file, File):
                 file.destroy()
 
-    # Copy saved file to .pyguifolder 
+    # Copy saved file to .pyguifolder
+    # TODO: create files in directories depending on their virtual folder
     def create_symlink_file(self, filename):
 
         # Keep track of whats saved in the logs     
@@ -437,10 +449,13 @@ class App(tk.Frame):
 
         new_path = f"{dest_dir}/{ntpath.basename(filename)}"
         try:
-            # Either we create a symlink if we can
+            # Either we create a symlink if its possible
             os.symlink(filename, new_path)
             return new_path, original_file_use
         except OSError:
+            if os.path.exists(new_path):
+                messagebox.showinfo("Not added", "File already exists in another folder")
+                return None, None
             # Or we make a copy of the file if the user wants
             if not self.symlink_error_displayed:
                 self.symlink_error_displayed = True
