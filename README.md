@@ -3,7 +3,7 @@
 ## What does it do
 Create virtual folders and add files as symlinks to them 
 
-![Image1](images/demo1.png)
+![Image1](images/demo.gif)
 
 Tested on Windows 10 21H1
 
